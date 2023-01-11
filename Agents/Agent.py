@@ -7,16 +7,3 @@ from agent_instance import AgentInstance
 
 agent = AgentInstance()
 agent.listen()
-
-
-
-                
-        
-
-
-
-
-
-    
-        
-                

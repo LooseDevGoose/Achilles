@@ -1,79 +1,162 @@
 # echo-client.py
 import socket
 import json
+import asyncio
+# Database prerequisites
+import sqlite3
+import os
+import time
 
-# #database prerequisites
-# import sqlite3
-# import os
 
 class CommandCenter:
 
     def __init__(self, PORT=9191):
-        #Default required Variables (CONSTANTS)
+        # Default required Variables (CONSTANTS)
         self.HOST = socket.gethostname()
         self.PORT = PORT
         self.LOCAL_IP = socket.gethostbyname(self.HOST)
 
-    def listen(self, MAX_CONNECTIONS=5):
-        #Bind the socket to port -> SOCK_STREAM = tcp traffic
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #Bind the sockets to the machine ip and 8574 port
-        sock.bind((self.HOST, self.PORT))
-        #Start listening on host and port, accepting a maximal of 50 connections in queue. New requests get denied. 
-        sock.listen(MAX_CONNECTIONS)
+        # List to keep track of all active agents
+        self.agent_list = {}
 
-        while True:
-            #Using ASCII colors here for readability  \033[#m] is the escape format, the number is the color Yellow = 33 Green=32
-            print(f"Command Center started listening on: \n\033[1;33mIP: \033[1;32m {self.LOCAL_IP}  \n\033[1;33mHostname: \033[1;32m{self.HOST.upper()}  \n\033[1;33mPort: \033[1;32m{self.PORT}")
-            connection, addr = sock.accept()
+        # Path of database
+        self.path = os.path.dirname(os.path.realpath(__file__))
 
-            #Decode command center's JSON data and assign to variable
-            data = connection.recv(1024).decode()
-            data = json.loads(data)              
-            
-            #Attack based on fed data, then break subloop upon completion
-            try:
-                while True:   
-                    if data:
-                        print(data)
-                        try:
-                        #Agent confirmation on registration success
-                            if data["REGISTRATION"] == "SUCCESS":
-                                print("Registration succeeded")
-                                break
-                            else:
-                                print("Registration failed, check the agent for more detailed logging")
-                                break
-                        except Exception as e:
-                            print("Failed to setup proper connection with agent1: ", e)
-                            break
-                    else:
-                        print('Data transmission finished from', addr, " closing connection and start listening mode again")
-                        break
-            finally:
-                connection.close()
+    # Check if database exist, otherwise create one
+    def create_database(self):
+        # Get the current working directory of the database
 
-    def register_agents(self, agents=["192.168.176.108"]):
-         # The agent's hostname or IP address
-        # The port used by the agent
-        PORT = 8574
+        # Connect (or create) to the database
+        conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
+        # Create cursor for database operations
+        cursor = conn.cursor()
+        # Create the 'AGENT_MACHINES' table
+        cursor.execute('''CREATE TABLE IF NOT EXISTS AGENT_MACHINES (
+            id INTEGER PRIMARY KEY,
+            hostname TEXT,
+            ip TEXT UNIQUE,
+            heartbeat INTEGER
+            )''')
+        # Save and close
+        conn.commit()
+        cursor.close()
 
-        #Generate payload data
-        data = {"GOAL": "REGISTER", "COMMAND_CENTER_IP": "192.168.0.88"}
-        data = json.dumps(data)
+    async def register_agents(self, agents):
+        # Generate payload data
+        DATA = json.dumps({"GOAL": "REGISTER", "COMMAND_CENTER_IP": self.LOCAL_IP})
 
+        if agents:
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             for agent in agents:
-                try:
-                    #Connect to the agent
-                    s.connect((agent, PORT))
-                    #Send the registration data
-                    s.sendall(data.encode())
-                except Exception as e:
-                    print("Failed to setup proper connection with agent2: ", e)
+                reader, writer = await asyncio.open_connection(agent, 8574)
+                writer.write(DATA.encode())
+                await writer.drain()
+                writer.close()
+                await writer.wait_closed()
+        else:
+            print("No agents provided, skipping")
 
-                s.close()
 
-      #  print(f"Received {response!r}")
 
+    # Add agent to database upon registration
+    def add_agent_to_database(self, agent_ip, hostname):
+        # Get the current working directory of the database
+        conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
+        cursor = conn.cursor()
+
+        # Insert data into the database based on a unique IP
+        cursor.execute('''INSERT OR IGNORE INTO AGENT_MACHINES
+        (hostname, ip, heartbeat) VALUES (?, ?, ?)''',
+        (f'{hostname}', f'{agent_ip}', '0'))
+        conn.commit()
+        conn.close()
+    # Set agent information in the database
+    def update_agent_information(self, agent_ip):
+        conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
+        cursor = conn.cursor()
+
+        update_agent_heartbeat = """Update AGENT_MACHINES set heartbeat = ? where ip = ?"""
+        _hearbeat_time = time.time()
+        data = (_hearbeat_time, agent_ip)
+        cursor.execute(update_agent_heartbeat, data)
+        conn.commit()
+        conn.close()
+
+    # Async function to update last seen time of agent every 10 seconds
+    async def update_agent_last_seen(self):
+        while True:
+            if self.agent_list:
+               
+                for agent in self.agent_list:
+                    self.agent_list[f'{agent}']['LAST_SEEN'] += 15
+                    print(self.agent_list)
+                await asyncio.sleep(15)
+            else:
+                print("No agents")
+                await asyncio.sleep(15)
+
+
+    async def listen(self, reader, writer):
+        try:
+            # Wait for message from client
+            data = await reader.read(1024)
+            message = json.loads(data.decode())
+            addr = writer.get_extra_info('peername')
+            print(f'Received message from {addr}: {message}')
+
+            writer.write(data)
+            await writer.drain()
+            writer.close()
+
+        except Exception as e:
+            print(e)
+
+        while message:
+            if "HELLO" in message:
+                print("decoded :)")
+                break
+            # In case of Agent heartbeat message
+            elif "HEARTBEAT" in message:
+
+                _ip = message["HEARTBEAT"]["AGENT_IP"]
+                print(message["HEARTBEAT"]["AGENT_IP"], " just sent a beat")
+
+                # Calculate the times
+                # Set the new_time to old_time
+                # The times are  in unix time, so substract old from new and you have the passed time
+                self.agent_list[f"{_ip}"]["LAST_SEEN"] = 0
+
+                break
+                # In case of Agent registration message
+            elif "REGISTRATION" in message:
+
+                _ip = message["REGISTRATION"]["AGENT_IP"]
+                print("Registration succeeded for: ", message["REGISTRATION"]["AGENT_IP"])
+
+                # Add the registration time for initial heartbeat calculation
+                self.agent_list[f"{_ip}"] = {}
+                self.agent_list[f"{_ip}"]["NEW_TIME"] = _time
+
+                # Add the agent to the CC database
+                self.add_agent_to_database(
+                    agent_ip=message["REGISTRATION"]["AGENT_IP"],
+                    hostname=message["REGISTRATION"]["HOSTNAME"])
+                break
+
+            else:
+                print('Data transmission finished from', addr, " closing connection and start listening mode again")
+                break
+
+    async def start_command_center(self):
+        # Define Server
+        server = await asyncio.start_server(self.listen, "192.168.1.88", self.PORT)
+
+        # Print Server Start
+        addr = server.sockets[0].getsockname()
+        print(f"Serving on {addr}")
+        
+        await asyncio.gather(server.serve_forever(), self.update_agent_last_seen())
+        
+
+    
+      
