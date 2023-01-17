@@ -15,12 +15,13 @@ class CommandCenter:
         self.HOST = socket.gethostname()
         self.PORT = PORT
         self.LOCAL_IP = socket.gethostbyname(self.HOST)
+        self.running = False
 
         # List to keep track of all active agents
         self.agent_list = {}
 
         # Path of database
-        self.path = os.path.dirname(os.path.realpath(__file__))
+        self.path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../database')
 
     # Check if database exist, otherwise create one
     def create_database(self):
@@ -31,12 +32,7 @@ class CommandCenter:
         # Create cursor for database operations
         cursor = conn.cursor()
         # Create the 'AGENT_MACHINES' table
-        cursor.execute('''CREATE TABLE IF NOT EXISTS AGENT_MACHINES (
-            id INTEGER PRIMARY KEY,
-            hostname TEXT,
-            ip TEXT UNIQUE,
-            heartbeat INTEGER
-            )''')
+
         # Save and close
         conn.commit()
         cursor.close()
@@ -54,9 +50,7 @@ class CommandCenter:
                 writer.close()
                 await writer.wait_closed()
         else:
-            print("No agents provided, skipping")
-
-
+            print("No agents provided for registration, skipping")
 
     # Add agent to database upon registration
     def add_agent_to_database(self, agent_ip, hostname):
@@ -64,12 +58,21 @@ class CommandCenter:
         conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
         cursor = conn.cursor()
 
+        cursor.execute('''CREATE TABLE IF NOT EXISTS AGENT_MACHINES (
+        id INTEGER PRIMARY KEY,
+        hostname TEXT,
+        ip TEXT UNIQUE,
+        heartbeat INTEGER
+        )''')
+
         # Insert data into the database based on a unique IP
         cursor.execute('''INSERT OR IGNORE INTO AGENT_MACHINES
         (hostname, ip, heartbeat) VALUES (?, ?, ?)''',
         (f'{hostname}', f'{agent_ip}', '0'))
         conn.commit()
+        print("added to DB")
         conn.close()
+
     # Set agent information in the database
     def update_agent_information(self, agent_ip):
         conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
@@ -86,14 +89,14 @@ class CommandCenter:
     async def update_agent_last_seen(self):
         while True:
             if self.agent_list:
-               
+
                 for agent in self.agent_list:
                     self.agent_list[f'{agent}']['LAST_SEEN'] += 15
                     print(self.agent_list)
                 await asyncio.sleep(15)
             else:
-                print("No agents")
-                await asyncio.sleep(15)
+                print("No agents to update heartbeat, skipping for 60 seconds")
+                await asyncio.sleep(60)
 
 
     async def listen(self, reader, writer):
@@ -135,7 +138,6 @@ class CommandCenter:
 
                 # Add the registration time for initial heartbeat calculation
                 self.agent_list[f"{_ip}"] = {}
-                self.agent_list[f"{_ip}"]["NEW_TIME"] = _time
 
                 # Add the agent to the CC database
                 self.add_agent_to_database(
@@ -149,14 +151,13 @@ class CommandCenter:
 
     async def start_command_center(self):
         # Define Server
-        server = await asyncio.start_server(self.listen, "192.168.1.88", self.PORT)
+        server = await asyncio.start_server(self.listen, "0.0.0.0", 9191)
 
         # Print Server Start
-        addr = server.sockets[0].getsockname()
-        print(f"Serving on {addr}")
-        
-        await asyncio.gather(server.serve_forever(), self.update_agent_last_seen())
-        
+        print(f"Command Centrum started and is listening on {server.sockets[0].getsockname()}")
 
-    
-      
+        # Start server + all subtasks async
+        await asyncio.gather(
+            server.serve_forever(),
+            self.update_agent_last_seen()
+            )

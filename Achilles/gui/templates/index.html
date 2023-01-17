@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Achilles Command Center </title>
+    <link rel="stylesheet" href="{{url_for('static',filename='dist/css/output.css')}}">
+</head>
+<body class="bg-gray-900">
+    <!-- Header-->
+    <div class="bg-white rounded-b-md flex items-center justify-between mx-4">
+        <!--Logo / Text-->
+        <div class="flex flex-row items-center">
+              <h1 class="">logo </h1>
+              <label class="p-4 font-bold text-xl">Project Achilles </label>
+        </div>
+       
+            <!--Flexbox for menu items-->
+        <div class="mr-4">
+            <button class="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg">Agents</button>
+            <button class="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg">Reports</button>
+            <button class="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg">Settings</button>
+        </div>
+ 
+  
+    </div>
+
+   <!--Cards-->
+    <div class="flex space-x-4 m-4">
+        <!--Agents-->
+        <div class="bg-white rounded-lg shadow-md  w-2/4 overflow-hidden">
+            <h2 class="text-lg font-bold text-gray-200 bg-indigo-600 p-2">Registered Agents</h2>
+            
+            <div class="flex mt-4 gap-x-4 p-2">
+            
+                <form action="/get-agents" method="post">
+                    <button name="getAgentsbutton" type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg" >Refresh Agent List</button>
+                </form>
+
+            </div>
+
+            <table class="w-full rounded-lg shadow-md mt-5 mx-auto ">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-800">
+                    <th class="px-4 py-2">#</th>
+                    <th class="px-4 py-2">Hostname</th>
+                    <th class="px-4 py-2">IP</th>
+                    <th class="px-4 py-2">Heartbeat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="text-gray-700">
+
+                    {%for agent in agents%}
+                    <td class="border px-4 py-2 font-semibold justify-center">{{agent[0]}}</td>
+                    <td class="border px-4 py-2 font-semibold justify-center">{{agent[1]}}</td>
+                    <td class="border px-4 py-2 font-semibold">{{agent[2]}}</td>
+                        {%if agent[3] < 90 %}
+                        <td class="border px-4 py-2 font-semibold">YES</td>
+                        {% else %}
+                        <td class="border px-4 py-2 font-semibold">NO</td>
+                        {% endif %}
+                    </tr>
+                    {%endfor%}
+                </tbody>
+                </table>
+        </div>
+        <!--Attack Console-->
+         <div class="bg-white rounded-lg shadow-md  w-2/4 overflow-hidden ">
+            <h2 class="text-lg font-bold text-gray-200 bg-indigo-600 p-2">Attack Console</h2>
+            <div class="flex flex-col w-3/4 shadow-md  mx-auto">
+
+                <!--Target Field-->
+                <div class="rounded-md p-2 w-full" >
+                    <label class="block text-gray-700 font-bold" for="target">Target (IP / FQDN):</label>
+                    <input class=" p-2 rounded-md block w-full bg-gray-200" id="target" required>
+                    </div>
+
+                <div class="p-2 mt-2 rounded-md  w-full" >
+                    <label class="block text-gray-700 font-bold" for="target">Attack Attempts:</label>
+                    <input class=" p-2 rounded-md block w-full bg-gray-200" id="target" required>
+                </div>
+
+                <div class="p-2 mt-2">
+                    <label class="block text-gray-700 font-bold" for="target">
+                        Attack Protocol:
+                    </label>
+                    
+                    <div class="flex ">
+                        <div class="flex items-center mr-4">
+                            <input id="inline-radio" type="radio" value="" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                            <label for="inline-radio" class="ml-2 text-sm font-medium text-gray-900 ">TCP</label>
+                        </div>
+                        <div class="flex items-center mr-4">
+                            <input id="inline-2-radio" type="radio" value="" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                            <label for="inline-2-radio" class="ml-2 text-sm font-medium text-gray-900 ">UDP</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input disabled id="inline-disabled-radio" type="radio" value="" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                            <label for="inline-disabled-radio" class="ml-2 text-sm font-medium text-gray-400 ">SSL</label>
+                        </div>
+                    </div>
+                </div>
+
+        
+
+            <div class="p-2 mt-2">
+                  <button name="attackButton" type="submit" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg w-full" >Start Attack</button>
+            </div>
+
+            </div>
+
+        </div>
+  </div>
+</body>
+</html>
