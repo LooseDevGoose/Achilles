@@ -6,11 +6,13 @@ from threading import Thread
 
 class AgentInstance:
 
-    def __init__(self, PORT=8574):
+    def __init__(self, LOCAL_IP, PORT=8574):
         # Default required Variables (CONSTANTS)
         self.HOST = socket.gethostname()
         self.PORT = PORT
-        self.LOCAL_IP = "192.168.176.108"
+        self.LOCAL_IP = LOCAL_IP
+
+        print("Agent started on: ", self.LOCAL_IP)
 
         # Variables
         self.COMMAND_CENTER = None
