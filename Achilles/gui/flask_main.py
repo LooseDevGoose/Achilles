@@ -41,6 +41,5 @@ def get_db_agents():
 def start_flask():
     app.run(debug=True)
 
-start_flask()
 #Dev command to apply tailwind changes
 #npx tailwindcss -i ./static/src/input.css -o ./static/dist/css/output.css --watch

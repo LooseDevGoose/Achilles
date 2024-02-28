@@ -82,7 +82,7 @@ class AgentInstance:
                             print("Invalid data received, ignoring..")
                             if not self.COMMAND_CENTER:
                                 print(
-                                    "This is probably because you tried to initiate attacks without registering the command center first")
+                                    "This is probably because you tried to initiate connections without registering the command center first")
                             break
 
 
