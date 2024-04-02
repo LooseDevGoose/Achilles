@@ -31,7 +31,6 @@ class CommandCenter:
         conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
         # Create cursor for database operations
         cursor = conn.cursor()
-        # Create the 'AGENT_MACHINES' table
 
         # Save and close
         conn.commit()

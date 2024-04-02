@@ -19,7 +19,9 @@ COPY agent.py ./
 #RUN python3 -m pip install -r requirements.txt
 # Now the structure looks like this '/usr/app/src/test.py'
 
-#docker image build -t python:0.0.1 C:\Coding\Achilles\Achilles\agent
+
 #CMD instruction should be used to run the software
 #contained by your image, along with any arguments.
-CMD [ "python", "./agent_main.py"]
+CMD [ "python", "-u", "./agent_main.py"]
+
+#docker image build -t python:0.0.1 C:\Coding\Achilles\Achilles\agent
