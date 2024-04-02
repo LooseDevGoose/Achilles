@@ -25,7 +25,7 @@ def get_db_agents():
 
     #Connect to Agent Machines Table
     metadata = MetaData()
-    mytable = Table('AGENT_MACHINES', metadata, autoload=True, autoload_with=engine)
+    mytable = Table('AGENT_MACHINES', metadata, autoload_with=engine)
 
     # Retrieve all rows from the table
     query = mytable.select()
@@ -39,7 +39,7 @@ def get_db_agents():
     return render_template("index.html", agents=agent_list)
 
 def start_flask():
-    app.run(debug=True)
+    app.run()#debug=false)
 
 #Dev command to apply tailwind changes
 #npx tailwindcss -i ./static/src/input.css -o ./static/dist/css/output.css --watch

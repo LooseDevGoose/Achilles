@@ -22,16 +22,19 @@ print("Creating new Thread for Command Center..")
 if __name__ == "__main__":
     print("Starting Command Centrum..")
  
-   
-     # Start new thread for TCP server (Command Center)
-    #loop = asyncio.new_event_loop()
-    command_center_thread = Thread(target=asyncio.run, args=(start_command_center(),))
-    command_center_thread.start()
-    #asyncio.run(cc.register_agents(["192.168.176.108"]))
+    try:
+        # Start new thread for TCP server (Command Center)
+        #loop = asyncio.new_event_loop()
+        command_center_thread = Thread(target=asyncio.run, args=(start_command_center(),))
+        command_center_thread.start()
+        #asyncio.run(cc.register_agents(["192.168.176.108"]))
+    except Exception as e:
+        print("Could not start Command Center: ", e)
 
-    print("Starting GUI..")
-    print("Starting Flask Server..")
-    flask_main.start_flask()
-
+    try:
+        print("Starting GUI..")
+        flask_main.start_flask()
+    except Exception as e:
+        print("Could not start Flask Server (GUI): ", e)
    
     

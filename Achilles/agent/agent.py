@@ -50,7 +50,7 @@ class AgentInstance:
             # Using ASCII colors here for readability  \033[#m] is the escape format, the number is the color Yellow = 33 Green=32
             print(
                 f"\n\033[1;33mAGENT IP: \033[1;32m {self.LOCAL_IP}  \n\033[1;33mHOSTNAME: \033[1;32m{self.HOST.upper()}  \n\033[1;33mPORT: \033[1;32m{self.PORT}")
-            print("\033[1;31mCommand Center did not acknowledge the registaion yet.. Waiting for registration..")
+            print("\033[1;31mCommand Center did not acknowledge the registration yet.. Waiting for registration..")
             
             # Register the agent
             self.register_agent()

@@ -17,11 +17,12 @@ class CommandCenter:
         self.LOCAL_IP = socket.gethostbyname(self.HOST)
         self.running = False
 
-        # List to keep track of all active agents
-        self.agent_list = {}
-
         # Path of database
         self.path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../database')
+
+        # List to keep track of all agents (including pre-registered ones in case of Command Center reboot)
+        self.agent_list = {}
+        # self.populate_agent_list()
 
     # Check if database exist, otherwise create one
     def create_database(self):
@@ -35,6 +36,15 @@ class CommandCenter:
         # Save and close
         conn.commit()
         cursor.close()
+    def populate_agent_list(self):
+        # get all agents from database and add to list
+        conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM AGENT_MACHINES")
+        self.agent_list = cursor.fetchall()
+        print(self.agent_list)
+        conn.close() 
+        
 
     async def register_agents(self, agents):
         # Generate payload data
@@ -86,16 +96,36 @@ class CommandCenter:
 
     # Async function to update last seen time of agent every 10 seconds
     async def update_agent_last_seen(self):
+        
         while True:
             if self.agent_list:
 
-                for agent in self.agent_list:
-                    self.agent_list[f'{agent}']['LAST_SEEN'] += 15
-                    print(self.agent_list)
-                await asyncio.sleep(15)
+                for agent in self.agent_list.copy():
+                    # only run code if agent is marked as active
+                    if self.agent_list[f'{agent}']['STATUS'] == "ACTIVE":
+                        _hb = int(self.agent_list[f'{agent}']['HEARTBEAT'])
+                        _hb += 15
+                        self.agent_list[f'{agent}']['HEARTBEAT'] = _hb
+                        print(self.agent_list)
+
+                        # Update the agent information in the database
+                        self.update_agent_information(agent)
+
+                        # If the agent is gone for more than 60 seconds, set the status to inactive
+                        if _hb > 60:
+                            self.agent_list[f'{agent}']['STATUS'] = "INACTIVE"
+                            print(f"Agent {agent} is inactive")
+                            self.agent_list.pop(f'{agent}')
+                            # update in database
+                            conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
+                            cursor = conn.cursor()
+                            cursor.execute(f"DELETE FROM AGENT_MACHINES WHERE ip = '{agent}'")
+                            conn.commit()
+                
+                await asyncio.sleep(2) #15
             else:
                 print("No agents to update heartbeat, skipping for 60 seconds")
-                await asyncio.sleep(60)
+                await asyncio.sleep(5) #60
 
 
     async def listen(self, reader, writer):
@@ -133,10 +163,11 @@ class CommandCenter:
             elif "REGISTRATION" in message:
 
                 _ip = message["REGISTRATION"]["AGENT_IP"]
+                _hostname =message["REGISTRATION"]["HOSTNAME"]
                 print("Registration succeeded for: ", message["REGISTRATION"]["AGENT_IP"])
 
-                # Add the registration time for initial heartbeat calculation
-                self.agent_list[f"{_ip}"] = {}
+                # Add the agent to the agent list
+                self.agent_list[f"{_ip}"] = {"HOSTNAME": f"{_hostname}", "HEARTBEAT": 0, "STATUS": "ACTIVE"}
 
                 # Add the agent to the CC database
                 self.add_agent_to_database(
