@@ -32,7 +32,13 @@ class CommandCenter:
         conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
         # Create cursor for database operations
         cursor = conn.cursor()
-
+        # Create table if not exists
+        cursor.execute('''CREATE TABLE IF NOT EXISTS AGENT_MACHINES (
+        id INTEGER PRIMARY KEY,
+        hostname TEXT,
+        ip TEXT UNIQUE,
+        heartbeat INTEGER
+        )''')
         # Save and close
         conn.commit()
         cursor.close()
@@ -79,7 +85,6 @@ class CommandCenter:
         (hostname, ip, heartbeat) VALUES (?, ?, ?)''',
         (f'{hostname}', f'{agent_ip}', '0'))
         conn.commit()
-        print("added to DB")
         conn.close()
 
     # Set agent information in the database
@@ -104,15 +109,18 @@ class CommandCenter:
                     # only run code if agent is marked as active
                     if self.agent_list[f'{agent}']['STATUS'] == "ACTIVE":
                         _hb = int(self.agent_list[f'{agent}']['HEARTBEAT'])
+                        # ping the agent and add 15 seconds to the heartbeat if no response
+                        self.agent_list[f'{agent}']['HEARTBEAT'] = _hb
+                        #print(self.agent_list)
+                        # Update the agent information in the database
                         _hb += 15
                         self.agent_list[f'{agent}']['HEARTBEAT'] = _hb
-                        print(self.agent_list)
 
                         # Update the agent information in the database
                         self.update_agent_information(agent)
 
                         # If the agent is gone for more than 60 seconds, set the status to inactive
-                        if _hb > 60:
+                        if _hb > 120:
                             self.agent_list[f'{agent}']['STATUS'] = "INACTIVE"
                             print(f"Agent {agent} is inactive")
                             self.agent_list.pop(f'{agent}')
@@ -122,10 +130,10 @@ class CommandCenter:
                             cursor.execute(f"DELETE FROM AGENT_MACHINES WHERE ip = '{agent}'")
                             conn.commit()
                 
-                await asyncio.sleep(2) #15
+                await asyncio.sleep(15) #15
             else:
-                print("No agents to update heartbeat, skipping for 60 seconds")
-                await asyncio.sleep(5) #60
+                print("No agents to update heartbeat, skipping for 15 seconds")
+                await asyncio.sleep(15) #10
 
 
     async def listen(self, reader, writer):
@@ -144,19 +152,12 @@ class CommandCenter:
             print(e)
 
         while message:
-            if "HELLO" in message:
-                print("decoded :)")
-                break
             # In case of Agent heartbeat message
-            elif "HEARTBEAT" in message:
+            if "HEARTBEAT" in message:
 
                 _ip = message["HEARTBEAT"]["AGENT_IP"]
-                print(message["HEARTBEAT"]["AGENT_IP"], " just sent a beat")
-
-                # Calculate the times
-                # Set the new_time to old_time
-                # The times are  in unix time, so substract old from new and you have the passed time
-                self.agent_list[f"{_ip}"]["LAST_SEEN"] = 0
+                # Update the agent heartbeat time
+                self.agent_list[f"{_ip}"] = {"HEARTBEAT": 0, "STATUS": "ACTIVE"}
 
                 break
                 # In case of Agent registration message
@@ -164,7 +165,7 @@ class CommandCenter:
 
                 _ip = message["REGISTRATION"]["AGENT_IP"]
                 _hostname =message["REGISTRATION"]["HOSTNAME"]
-                print("Registration succeeded for: ", message["REGISTRATION"]["AGENT_IP"])
+                print("Registration succeeded for:", message["REGISTRATION"]["AGENT_IP"])
 
                 # Add the agent to the agent list
                 self.agent_list[f"{_ip}"] = {"HOSTNAME": f"{_hostname}", "HEARTBEAT": 0, "STATUS": "ACTIVE"}

