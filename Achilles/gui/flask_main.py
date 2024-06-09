@@ -1,5 +1,6 @@
 from flask import Flask, render_template
 import os
+import sqlite3
 from sqlalchemy import create_engine, Table, MetaData
 
 
@@ -39,6 +40,18 @@ def get_db_agents():
     connection.close()
     print(agent_list)
     return render_template("index.html", agents=agent_list)
+
+@app.route("/purge-database", methods=['POST'])
+def purge_database():
+
+   # purge the database
+    conn = sqlite3.connect(fr'{path}\CC_DATABASE.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM AGENT_MACHINES")
+    conn.commit()
+    conn.close()
+
+    return render_template("index.html")
 
 def start_flask():
     app.run()#debug=false)

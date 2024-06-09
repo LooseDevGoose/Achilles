@@ -24,4 +24,4 @@ COPY agent.py ./
 #contained by your image, along with any arguments.
 CMD [ "python", "-u", "./agent_main.py"]
 
-#docker image build -t python:0.0.1 C:\Coding\Achilles\Achilles\agent
+#docker image build -t python:0.0.1 "X:\Python Projects\Community\Achilles\Achilles\agent"
