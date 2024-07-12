@@ -14,6 +14,8 @@ print("\u001b[32mInstantiating Command Center..")
 async def start_command_center():
     await cc.start_command_center()
 
+async def start_attack():
+    await cc.send_data_to_agents()
 
 print("Creating new Thread for Command Center..")
 

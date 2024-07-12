@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 import os
 from sqlalchemy import create_engine, Table, MetaData
+from main import start_attack
 
 
 #Path for database
@@ -39,6 +40,12 @@ def get_db_agents():
     connection.close()
     print(agent_list)
     return render_template("index.html", agents=agent_list)
+
+@app.route("/start-attack", methods=['POST'])
+def start_attack():
+    print("Starting attack..")
+    start_attack()
+    return render_template("index.html")
 
 def start_flask():
     app.run()#debug=false)

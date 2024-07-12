@@ -9,7 +9,7 @@ def get_ip_address():
 local_ip = get_ip_address()
 
 try:
-    agent = AgentInstance(LOCAL_IP=local_ip, COMMAND_CENTER="10.10.32.204")
+    agent = AgentInstance(LOCAL_IP=local_ip, COMMAND_CENTER="10.10.32.176")
     agent.listen()
 except Exception as e:
     print(e)

