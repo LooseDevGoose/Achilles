@@ -42,6 +42,7 @@ class CommandCenter:
         # Save and close
         conn.commit()
         cursor.close()
+    
     def populate_agent_list(self):
         # get all agents from database and add to list
         conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
