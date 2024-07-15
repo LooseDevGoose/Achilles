@@ -94,16 +94,22 @@
          <div class="bg-white rounded-lg shadow-md  w-2/4 overflow-hidden ">
             <h2 class="text-lg font-bold text-gray-200 bg-gray-800 p-2">Connection Console</h2>
             <div class="flex flex-col  shadow-md ">
-
+        <form action="/start-attack" method="POST">
                 <!--Target Field-->
                 <div class="rounded-md p-2 w-full" >
                     <label class="block text-gray-700 font-bold" for="target">Target (IP / FQDN):</label>
-                    <input class=" p-2 rounded-md block w-full bg-gray-200" id="target" value="my.hostname.com" required>
+                    <input class=" p-2 rounded-md block w-full bg-gray-200" id="target" name="target" value="my.hostname.com" required>
                     </div>
-
+                
+                <!-- Port Field-->
                 <div class="p-2 mt-2 rounded-md  w-full" >
-                    <label class="block text-gray-700 font-bold" for="target">Connection Attempts:</label>
-                    <input class=" p-2 rounded-md block w-full bg-gray-200" id="target" type="number" value="1"  required>
+                    <label class="block text-gray-700 font-bold" for="port">Port:</label>
+                    <input class=" p-2 rounded-md block w-full bg-gray-200" id="port" name="port" type="number" value="443" required>
+                </div>
+                
+                <div class="p-2 mt-2 rounded-md  w-full" >
+                    <label class="block text-gray-700 font-bold" for="hits">Connection Attempts:</label>
+                    <input class=" p-2 rounded-md block w-full bg-gray-200" id="hits" name="hits" type="number" value="1"  required>
                 </div>
 
                 <div class="p-2 mt-2">
@@ -113,16 +119,12 @@
                     
                     <div class="flex ">
                         <div class="flex items-center mr-4">
-                            <input id="inline-2-radio" type="radio" value="" checked="true" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                            <label for="inline-2-radio" class="ml-2 text-sm font-medium text-gray-900 ">TLS</label>
+                            <input id="inline-2-radio" type="radio" value="TCP" checked="true" name="protocol" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                            <label for="inline-2-radio" class="ml-2 text-sm font-medium text-gray-900 ">TCP</label>
                         </div>
                         <div class="flex items-center mr-4">
-                            <input id="inline-radio" type="radio" value="" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                            <input id="inline-radio" type="radio" value="UDP" name="protocol" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
                             <label for="inline-radio" class="ml-2 text-sm font-medium text-gray-900 ">UDP</label>
-                        </div>
-                        <div class="flex items-center">
-                            <input disabled id="inline-disabled-radio" type="radio" value="" name="inline-radio-group" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                            <label for="inline-disabled-radio" class="ml-2 text-sm font-medium text-gray-400 ">DTLS</label>
                         </div>
                     </div>
                 </div>
@@ -131,17 +133,17 @@
                     <label class="block text-gray-700 font-bold" for="target">
                         Cipher Suite:
                     </label>
-                    <select class="p-2 rounded-md block w-full bg-gray-200" id="target" required>
-                        <option value="1">AES-128-GCM-SHA256</option>
-                        <option value="2">AES-256-GCM-SHA384</option>
-                        <option value="3">ECDHE-RSA-AES128-GCM-SHA256</option>
-                        <option value="4">ECDHE-RSA-AES256-GCM-SHA384</option>
+                    <select class="p-2 rounded-md block w-full bg-gray-200" id="cipher" name="cipher" required>
+                        <option value="AES-128-GCM-SHA256">AES-128-GCM-SHA256</option>
+                        <option value="AES-256-GCM-SHA384">AES-256-GCM-SHA384</option>
+                        <option value="ECDHE-RSA-AES128-GCM-SHA256">ECDHE-RSA-AES128-GCM-SHA256</option>
+                        <option value="ECDHE-RSA-AES256-GCM-SHA384">ECDHE-RSA-AES256-GCM-SHA384</option>
                     </select>
                 
                 
 
         
-        <form action="/start-attack" method="POST">
+      
             <div class="p-2 mt-2 flex justify-center">
                   <button name="connectButton" type="submit" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg w-2/4" >Start Connections</button>
             </div>

@@ -18,7 +18,8 @@ COPY agent.py ./
 #ADD ./requirements.txt ./
 #RUN python3 -m pip install -r requirements.txt
 # Now the structure looks like this '/usr/app/src/test.py'
-
+# Expose the agent listener port
+EXPOSE 8574
 
 #CMD instruction should be used to run the software
 #contained by your image, along with any arguments.

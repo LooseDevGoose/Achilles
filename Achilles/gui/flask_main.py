@@ -1,8 +1,8 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 import os
 import sqlite3
 from sqlalchemy import create_engine, Table, MetaData
-from main import start_attack
+from main import cc
 
 
 #Path for database
@@ -43,9 +43,20 @@ def get_db_agents():
     return render_template("index.html", agents=agent_list)
 
 @app.route("/start-attack", methods=['POST'])
-def start_attack():
+async def start_attack():
     print("Starting attack..")
-    start_attack()
+    # Get the form data
+    protocol = request.form.get('protocol')
+    target = request.form.get('target')
+    port = request.form.get('port')
+    hits = request.form.get('hits')
+    cipher = request.form.get('cipher')
+
+    print(protocol, target, port, hits, cipher)
+
+    await cc.send_data_to_agents(protocol, target, port, hits, cipher)
+    return render_template("index.html")
+
 @app.route("/purge-database", methods=['POST'])
 def purge_database():
 

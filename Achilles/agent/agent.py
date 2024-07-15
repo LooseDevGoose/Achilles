@@ -2,6 +2,8 @@ import socket
 import json
 import time
 from threading import Thread
+import asyncio
+import ssl
 
 
 class AgentInstance:
@@ -21,6 +23,20 @@ class AgentInstance:
         # Thread(s)
         self.heartbeat_thread = Thread(target=self.send_heartbeat)
 
+        # Register the agent
+        self.register_agent()
+
+        # Determine if the agent should be heartbeating
+        if self.UNREGISTERED is False and self.should_heartbeat is False:
+            # Start the heartbeat thread
+            print("Starting Heartbeat thread to prove health status")
+            self.should_heartbeat = True
+            self.heartbeat_thread.start()
+        elif self.UNREGISTERED is True and self.should_heartbeat is True:
+            print("Stopping Heartbeat thread")
+            self.should_heartbeat = False
+            self.heartbeat_thread.stop()
+    
     def register_agent(self):
             
          # Register the agent
@@ -38,98 +54,59 @@ class AgentInstance:
                 self.register_agent()
 
 
-    def listen(self, MAX_CONNECTIONS=1):
-        # Bind the socket to port -> SOCK_STREAM = tcp traffic
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Bind the sockets to the machine ip and 8574 port
-        sock.bind((self.LOCAL_IP, self.PORT))
-        # Start listening on host and port
-        sock.listen(MAX_CONNECTIONS)
+    async def listen(self, reader, writer):
+        try:
 
-        while True:
-            # Using ASCII colors here for readability  \033[#m] is the escape format, the number is the color Yellow = 33 Green=32
-            print(
-                f"\n\033[1;33mAGENT IP: \033[1;32m {self.LOCAL_IP}  \n\033[1;33mHOSTNAME: \033[1;32m{self.HOST.upper()}  \n\033[1;33mPORT: \033[1;32m{self.PORT}")
-            print("\033[1;31mCommand Center did not acknowledge the registration yet.. Waiting for registration..")
-            
-            # Register the agent
-            self.register_agent()
+            print("connection acceptation phase")
+            data = await reader.read(1024)
+            message = json.loads(data.decode())
+            addr = writer.get_extra_info('peername')
+            print(f'Received message from {addr}: {message}')
 
-            # Determine if the agent should be heartbeating
-            if self.UNREGISTERED is False and self.should_heartbeat is False:
-                # Start the heartbeat thread
-                print("Starting Heartbeat thread to prove health status")
-                self.should_heartbeat = True
-                self.heartbeat_thread.start()
-            elif self.UNREGISTERED is True and self.should_heartbeat is True:
-                self.should_heartbeat = False
-                self.heartbeat_thread.stop()
+            writer.write(data)
+            await writer.drain()
+            writer.close()    
+        
+        except Exception as e:
+            print(e)
+        
+       
+        while message:
+            print("Checking for message logic")
+            # Attack the target if there is an attack instruction
+            if "ATTACK" in message and self.COMMAND_CENTER:
+                message = message["ATTACK"]
+                #print(f"\033[1;95mInstructed to attack '{message['TARGET'].upper()}' on protocol: '{message['PROTOCOL'].upper()}' * '{message['HITS']}' times. Cipher: {message['CIPHER']}")
 
-            # Accept incoming connections
-            connection, addr = sock.accept()
+                # Start the attack function with a valid IP / PORT / PROTOCOL / HIT amount and the connection instance to report back metrics to the master
+                rtt_data = self.attack(PROTOCOL=message['PROTOCOL'], IP=message['TARGET'], PORT=message['PORT'], HITS=message['HITS'])
 
-            # Decode command center's JSON data and assign to variable
-            data = connection.recv(1024).decode()
-            data = json.loads(data)
+                # Send the RTT Data back to the command center for processing
+                try:
+                    print(f"Sending RTT data to Command Center: {rtt_data}")
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.connect((self.COMMAND_CENTER, 9191))
+                        rtt_data = json.dumps({"RTT": rtt_data})
+                        #send the RTT data list to the command center so it can be stored in the database
+                        s.sendall((rtt_data.encode()))
+                except Exception as e:
+                    print("ERROR could not send RTT data to command center: ", e)
+                    break
+            else:
+                print(message)
+                if not self.COMMAND_CENTER:
+                    print(
+                        "This is probably because you tried to initiate connections without registering the command center first")
+                break
 
-            
-
-            try:
-                while True:
-                    # If data is being sent to the agent follow this logic chain
-                    if data:
-
-                        # # Register the command centrum
-                        # if data['GOAL'] == "REGISTER":
-                        #     try:
-                        #         # Retrieve the command center IP from the message
-                        #         self.COMMAND_CENTER = data["COMMAND_CENTER_IP"]
-                        #         print(
-                        #             f"\n\033[1;95mCommand Center registration complete @: \033[1;32m{self.COMMAND_CENTER}")
-                        #         # Stop any active heartbeats in case of re-registering
-                        #         self.should_heartbeat = False
-                        #         # Start heartbeats on a seperate thread to not clog the main loop
-                        #         self.should_heartbeat = True
-                        #         self.heartbeat_thread.start()
-
-                        #     except Exception as e:
-                        #         print("Command center could not register: ", e)
-                        #     break
-
-            
-
-                        # Attack the target
-                        if "ATTACK" in data and self.COMMAND_CENTER:
-                            print(
-                                f"\033[1;95mDebug: Instructed to attack '{data['TARGET'].upper()}' on protocol: '{data['PROTOCOL'].upper()}' * '{data['HITS']}' times")
-
-                            # Start the attack function with a valid IP / PORT / PROTOCOL / HIT amount and the connection instance to report back metrics to the master
-                            rtt_data = self.attack(PROTOCOL=data['PROTOCOL'], IP=data["TARGET"], PORT=data["PORT"],
-                                                   HITS=data['HITS'])
-
-                            # Send the RTT Data back to the command center for processing
-                            try:
-                                connection.sendall(rtt_data.encode())
-                            except Exception as e:
-                                print("ERROR could not send RTT data to command center: ", e)
-                            break
-                        else:
-                            print("Invalid data received, ignoring..")
-                            if not self.COMMAND_CENTER:
-                                print(
-                                    "This is probably because you tried to initiate connections without registering the command center first")
-                            break
-
-
-
-                    else:
-                        print('Data transmission finished from', addr,
-                              " closing connection and start listening mode again")
-                        break
-            finally:
-                connection.close()
-
-    def attack(self, IP, PORT, HITS, PROTOCOL="TCP", data=b"Attack Message"):#, CIPHER="ECDHE-ECDSA-AES128-GCM-SHA256", SSLCONTEXT='ssl.PROTOCOL_TLSv1_2' ):
+    def attack(self, IP, PORT, HITS, PROTOCOL="TCP", data=b"Attack Message", CIPHER="ECDHE-ECDSA-AES128-GCM-SHA256", SSLCONTEXT=ssl.PROTOCOL_TLSv1_2):
+        print("Initiating attack function")
+        print("Target:", str(IP))
+        print("Port:", str(PORT))
+        print("Protocol:", str(PROTOCOL))
+        print("Cipher:", str(CIPHER))
+        print("TLS Version:", str(SSLCONTEXT))
+        print("Hits:", str(HITS))
         # list for storing the sockets
         _sockets = []
         # list for storing the roundtriptimes whom we send back to the command center
@@ -138,12 +115,12 @@ class AgentInstance:
         _RTT.append(self.LOCAL_IP)
 
         # Check protocol and assign either to TCP or UDP
-        for i in range(HITS):
+        for i in range(int(HITS)):
 
             if PROTOCOL == 'TCP':
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                #context = ssl.SSLContext(SSLCONTEXT)
-                #context.set_ciphers(CIPHER)
+                context = ssl.SSLContext(SSLCONTEXT)
+                context.set_ciphers(CIPHER)
                 _sockets.append(s)
             # print(f"\033[1;95mDebug: attacking on TCP per the Attack function")
 
@@ -154,7 +131,7 @@ class AgentInstance:
 
         # For the specified amount of hits, open a connection and send data
         for s in _sockets:
-            s.connect((IP, PORT))
+            s.connect((IP, int(PORT)))
             try:
 
                 # Send data to target and start timer
@@ -172,7 +149,7 @@ class AgentInstance:
                 # Close the connection
                 s.close()
 
-            # Ff connection  is closed by target, retry
+            # If connection is closed by target, retry
             except socket.error as e:
                 if e.errno == 104:
                     print("Connection reset by target, retrying to send data..")
@@ -205,3 +182,14 @@ class AgentInstance:
                     print("\033[1;31mERROR: Could not stop heartbeat thread, it might be wise to reboot the agent: ", e)
 
         print("\033[1;95mWARNING: Heartbeat stopped!")
+
+    async def start_agent(self, LOCAL_IP):
+        # Define Server
+        server = await asyncio.start_server(self.listen, LOCAL_IP, 8574)
+
+        # Print Server Start
+        print(f"Agent started and is listening on {server.sockets[0].getsockname()}")
+
+        # Start server + all subtasks async
+        await server.serve_forever()
+        
