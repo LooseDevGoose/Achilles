@@ -43,7 +43,7 @@ def get_db_agents():
     return render_template("index.html", agents=agent_list)
 
 @app.route("/start-attack", methods=['POST'])
-async def start_attack():
+def start_attack():
     print("Starting attack..")
     # Get the form data
     protocol = request.form.get('protocol')
@@ -52,9 +52,9 @@ async def start_attack():
     hits = request.form.get('hits')
     cipher = request.form.get('cipher')
 
-    print(protocol, target, port, hits, cipher)
+    #print(protocol, target, port, hits, cipher)
 
-    await cc.send_data_to_agents(protocol, target, port, hits, cipher)
+    cc.send_data_to_agents(protocol, target, port, hits, cipher)
     return render_template("index.html")
 
 @app.route("/purge-database", methods=['POST'])
