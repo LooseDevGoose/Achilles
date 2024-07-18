@@ -56,12 +56,10 @@ class AgentInstance:
 
     async def listen(self, reader, writer):
         try:
-
-            print("connection acceptation phase")
             data = await reader.read(1024)
             message = json.loads(data.decode())
             addr = writer.get_extra_info('peername')
-            print(f'Received message from {addr}: {message}')
+            print(f'Received message from {addr}')
 
             writer.write(data)
             await writer.drain()
@@ -75,10 +73,10 @@ class AgentInstance:
             # Attack the target if there is an attack instruction
             if "ATTACK" in message and self.COMMAND_CENTER:
                 message = message["ATTACK"]
-                #print(f"\033[1;95mInstructed to attack '{message['TARGET'].upper()}' on protocol: '{message['PROTOCOL'].upper()}' * '{message['HITS']}' times. Cipher: {message['CIPHER']}")
+            
                 try:
                     # Start the attack function with a valid IP / PORT / PROTOCOL / HIT amount and the connection instance to report back metrics to the master
-                    rtt_data = self.attack(PROTOCOL=message['PROTOCOL'], IP=message['TARGET'], PORT=message['PORT'], HITS=message['HITS'])
+                    rtt_data = self.attack(PROTOCOL=message['PROTOCOL'], IP=message['TARGET'], PORT=message['PORT'], HITS=message['HITS'], CIPHER=message['CIPHER'])
                 except Exception as e:
                     print("\033[1;31mERROR: Could not start attack: ", e)
                     break
@@ -95,13 +93,13 @@ class AgentInstance:
                     print("ERROR could not send RTT data to command center: ", e)
                     break
             else:
-                print(message)
                 if not self.COMMAND_CENTER:
                     print(
                         "This is probably because you tried to initiate connections without registering the command center first")
                 break
 
-    def attack(self, IP, PORT, HITS, PROTOCOL="TCP", data=b"Attack Message", CIPHER="ECDHE-ECDSA-AES128-GCM-SHA256", SSLCONTEXT=ssl.PROTOCOL_TLSv1_2):
+    def attack(self, IP, PORT, HITS, CIPHER, PROTOCOL, data=b"Handshake Message", SSLCONTEXT=ssl.TLSVersion.TLSv1_2):
+        print("\033[1;95m---------------------------------")
         print("\033[1;33mInitiating attack function on:")
         print("\033[1;33mTarget:", f"\033[1;32m{str(IP)}")
         print("\033[1;33mPort:", f"\033[1;32m{str(PORT)}")
@@ -109,48 +107,41 @@ class AgentInstance:
         print("\033[1;33mCipher:", f"\033[1;32m{str(CIPHER)}")
         print("\033[1;33mTLS Version:", f"\033[1;32m{str(SSLCONTEXT)}")
         print("\033[1;33mHits:", f"\033[1;32m{str(HITS)}")
-        # list for storing the sockets
-        _sockets = []
-        # list for storing the roundtriptimes whom we send back to the command center
-        _RTT = []
-        # Append the RTT list with the IP of the source machine for data handling
-        #_RTT.append(self.LOCAL_IP)
+        print("\033[1;95m---------------------------------")
 
+        # List for storing the roundtriptimes whom we send back to the command center
+        _RTT = []
+        # Append the RTT list with the Cipher suite used, we will use this later on for graphs
+        _RTT.append(CIPHER)
+        # Create the request line so we get an answer from the target
+        request_line= "GET / HTTP/1.0\r\nHost: {IP}\r\n\r\n"
         # Check protocol and assign either to TCP or UDP
         for i in range(int(HITS)):
-
-            if PROTOCOL == 'TCP':
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                context = ssl.SSLContext(SSLCONTEXT)
-                context.set_ciphers(CIPHER)
-                _sockets.append(s)
-            # print(f"\033[1;95mDebug: attacking on TCP per the Attack function")
-
-            else:
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                _sockets.append(s)
-            # print(f"\033[1;95mDebug: attacking on UDP per the Attack function")
-
-        # For the specified amount of hits, open a connection and send data
-        for s in _sockets:
             try:
-                s.connect((IP, int(PORT)))
-                # Send data to target and start timer
-                start_time = time.time()
-                s.sendall(data)
+                if PROTOCOL == 'TCP':
+                    
+                    context = ssl.create_default_context()
+                    context.maximum_version = ssl.TLSVersion.TLSv1_2
+                    context.set_ciphers(CIPHER)
 
-                # Await response from target
-                response = s.recv(1024)
-
-                # Calculate RTT time
-                end_time = time.time()
-                RTT = end_time - start_time
-                _RTT.append(RTT)
-
-                # Close the connection
-                s.close()
-
-            # If connection is closed by target, retry
+                     # Calculate RTT time
+                    start_time = time.time()
+                    
+                    with socket.create_connection((IP, int(PORT))) as sock:
+                        with context.wrap_socket(sock, server_hostname=IP) as ssock:
+                            ssock.sendall(request_line.encode())
+                            print(ssock.version(), ssock.cipher())
+                            ssock.recv(4096)
+                            ssock.close()
+                    
+                    end_time = time.time()
+                    RTT = end_time - start_time
+                    _RTT.append(RTT)
+                    #_sockets.append(s)
+    
+                else:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    _sockets.append(s)
             except socket.error as e:
                 if e.errno == 104:
                     print("\033[1;95mConnection reset by target, retrying to send data..")
@@ -160,6 +151,7 @@ class AgentInstance:
                     print("\033[1;95mERROR: Could not send data to target: ", e)
                     _RTT = None
                     break
+          
         # Return all the roundtrip time data to send to the command center
         return (_RTT)
 
