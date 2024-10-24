@@ -51,10 +51,12 @@ def start_attack():
     port = request.form.get('port')
     hits = request.form.get('hits')
     cipher = request.form.get('cipher')
+    sslcontext = request.form.get('tlsversion')
+    print(sslcontext)
 
     #print(protocol, target, port, hits, cipher)
 
-    cc.send_data_to_agents(protocol, target, port, hits, cipher)
+    cc.send_data_to_agents(protocol, target, port, hits, cipher, sslcontext)
     return render_template("index.html")
 
 @app.route("/purge-database", methods=['POST'])
@@ -68,6 +70,18 @@ def purge_database():
     conn.close()
 
     return render_template("index.html")
+
+@app.route("/clear-rtt")
+def clear_rtt():
+    
+        # purge the database
+        conn = sqlite3.connect(fr'{path}\CC_DATABASE.db')
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM AGENT_RTT")
+        conn.commit()
+        conn.close()
+    
+        return render_template("index.html")
 
 def start_flask():
     app.run()#debug=false)

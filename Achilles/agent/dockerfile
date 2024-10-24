@@ -20,9 +20,10 @@ COPY agent.py ./
 # Now the structure looks like this '/usr/app/src/test.py'
 # Expose the agent listener port
 EXPOSE 8574
-
+RUN apt-get update
+RUN apt-get install -y iputils-ping
 #CMD instruction should be used to run the software
 #contained by your image, along with any arguments.
 CMD [ "python", "-u", "./agent_main.py"]
 
-#docker image build -t python:0.0.1 "X:\Python Projects\Community\Achilles\Achilles\agent"
+#docker image build -t agent:0.0.1 "X:\Python Projects\Community\Achilles\Achilles\agent"

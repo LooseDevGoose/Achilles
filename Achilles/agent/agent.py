@@ -76,7 +76,7 @@ class AgentInstance:
             
                 try:
                     # Start the attack function with a valid IP / PORT / PROTOCOL / HIT amount and the connection instance to report back metrics to the master
-                    rtt_data = self.attack(PROTOCOL=message['PROTOCOL'], IP=message['TARGET'], PORT=message['PORT'], HITS=message['HITS'], CIPHER=message['CIPHER'])
+                    rtt_data = self.attack(PROTOCOL=message['PROTOCOL'], IP=message['TARGET'], PORT=message['PORT'], HITS=message['HITS'], CIPHER=message['CIPHER'], SSLCONTEXT=message['SSLCONTEXT'])
                 except Exception as e:
                     print("\033[1;31mERROR: Could not start attack: ", e)
                     break
@@ -98,14 +98,14 @@ class AgentInstance:
                         "This is probably because you tried to initiate connections without registering the command center first")
                 break
 
-    def attack(self, IP, PORT, HITS, CIPHER, PROTOCOL, data=b"Handshake Message", SSLCONTEXT=ssl.TLSVersion.TLSv1_2):
+    def attack(self, IP, PORT, HITS, CIPHER, PROTOCOL, SSLCONTEXT, data=b"Handshake Message"):
         print("\033[1;95m---------------------------------")
         print("\033[1;33mInitiating attack function on:")
         print("\033[1;33mTarget:", f"\033[1;32m{str(IP)}")
-        print("\033[1;33mPort:", f"\033[1;32m{str(PORT)}")
+        print("\033[1;33mPort:", f"\033[1;32m{str(PORT)}")  
         print("\033[1;33mProtocol:", f"\033[1;32m{str(PROTOCOL)}")
         print("\033[1;33mCipher:", f"\033[1;32m{str(CIPHER)}")
-        print("\033[1;33mTLS Version:", f"\033[1;32m{str(SSLCONTEXT)}")
+        print("\033[1;33mTLS Version:", f"\033[1;32m{repr(SSLCONTEXT)}")
         print("\033[1;33mHits:", f"\033[1;32m{str(HITS)}")
         print("\033[1;95m---------------------------------")
 
@@ -121,27 +121,40 @@ class AgentInstance:
                 if PROTOCOL == 'TCP':
                     
                     context = ssl.create_default_context()
-                    context.maximum_version = ssl.TLSVersion.TLSv1_2
-                    context.set_ciphers(CIPHER)
+                    #It's dirty with an eval, don't judge me
+                    if SSLCONTEXT == "ssl.TLSVersion.TLSv1_2":
 
-                     # Calculate RTT time
-                    start_time = time.time()
+                        context.maximum_version = eval(SSLCONTEXT)
+                        context.set_ciphers(CIPHER)
+                    else:
+                        print("TLSv1.3 Ciphers cant be forced by the client yet. The cipher will be determined by the server")
+
+                    # Calculate RTT time
                     
-                    with socket.create_connection((IP, int(PORT))) as sock:
-                        with context.wrap_socket(sock, server_hostname=IP) as ssock:
-                            ssock.sendall(request_line.encode())
-                            print(ssock.version(), ssock.cipher())
-                            ssock.recv(4096)
-                            ssock.close()
+                    sock = socket.create_connection((IP, int(PORT)))
                     
-                    end_time = time.time()
+                    ssock = context.wrap_socket(sock, server_hostname=IP, do_handshake_on_connect=False)
+                    start_time = time.perf_counter_ns()
+                    ssock.do_handshake()
+                    end_time = time.perf_counter_ns()
+                    ssock.sendall(request_line.encode())
+                    print("Final Negotiation: ", ssock.version(), ssock.cipher())
+                    ssock.recv(4096)
+    
+                    ssock.close()
+        
                     RTT = end_time - start_time
                     _RTT.append(RTT)
                     #_sockets.append(s)
-    
+                
+                # UDP packages
                 else:
                     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    _sockets.append(s)
+                    s.connect((IP, int(PORT)))
+                    s.sendall(data)
+                    s.recv(4096)
+                    s.close()
+
             except socket.error as e:
                 if e.errno == 104:
                     print("\033[1;95mConnection reset by target, retrying to send data..")
