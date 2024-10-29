@@ -160,15 +160,28 @@ class CommandCenter:
 
     async def listen(self, reader, writer):
         try:
-            # Wait for message from client
-            data = await reader.read(1024)
+            # Initialize an empty byte buffer to collect the data
+            data = b""
+            
+            # Read the stream in chunks until no more data is available
+            while True:
+                chunk = await reader.read(2048)  # Read in 2048 byte chunks
+                if not chunk:  # If chunk is empty, the stream is likely closed
+                    break
+                data += chunk  # Append the chunk to the data buffer
+
+            # Decode and load the complete JSON message
             message = json.loads(data.decode())
+            
+            # Get client address info
             addr = writer.get_extra_info('peername')
             print(f'Received message from {addr}: {message}')
 
+            # Echo the message back to the client
             writer.write(data)
             await writer.drain()
             writer.close()
+            await writer.wait_closed()
 
         except Exception as e:
             print(e)

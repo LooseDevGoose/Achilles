@@ -126,7 +126,13 @@ class AgentInstance:
 
                         context.maximum_version = eval(SSLCONTEXT)
                         context.set_ciphers(CIPHER)
+                        context.check_hostname = False
+                        context.verify_mode = ssl.CERT_NONE
+                        
                     else:
+                        context.maximum_version = eval(SSLCONTEXT)
+                        context.check_hostname = False
+                        context.verify_mode = ssl.CERT_NONE
                         print("TLSv1.3 Ciphers cant be forced by the client yet. The cipher will be determined by the server")
 
                     # Calculate RTT time
@@ -145,6 +151,7 @@ class AgentInstance:
         
                     RTT = end_time - start_time
                     _RTT.append(RTT)
+                    print(_RTT)
                     #_sockets.append(s)
                 
                 # UDP packages

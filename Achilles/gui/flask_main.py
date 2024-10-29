@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request
 import os
+import ast
 import sqlite3
+import statistics
 from sqlalchemy import create_engine, Table, MetaData
 from main import cc
 
@@ -18,6 +20,49 @@ app = Flask(__name__)
 @app.route("/index")
 def index():
     return render_template("index.html")
+
+@app.route("/reports")
+def reports():
+    ##Retrieve results from database
+    #Setup engine
+    engine = create_engine(f'sqlite:///{path}/CC_DATABASE.db')
+    connection = engine.connect()
+
+    #Connect to Agent Machines Table
+    metadata = MetaData()
+    mytable = Table('AGENT_RTT', metadata, autoload_with=engine)
+
+    # Retrieve all rows from the table
+    query = mytable.select()
+    result = connection.execute(query)
+    result_list = result.fetchall()
+    # Option 2: As list of tuples (just values)
+    result_mutated_list = [list(row) for row in result_list]
+
+    #print(result_mutated_list)
+
+    # List cleanup
+    for x in result_mutated_list:
+        # add a new item that will become the list location
+        x.append(ast.literal_eval(x[2]))
+        # convert the string to a list
+        x[2] = ast.literal_eval(x[2])
+        # set the cipher suit from the string to a different list location
+        x[2] = x[2][0]
+        # remove the cipher suit from the list with numbers
+        x[3].pop(0)
+        # create a totol of all numbers in the list
+        average = sum(x[3]) // len(x[3])
+        # add the total to the list
+        x.append(average)
+        x.append(statistics.stdev(x[3]))
+        x[3] = len(x[3])
+
+
+    
+    # Close the connection
+    connection.close()
+    return render_template("reports.html", results=result_mutated_list)
 
 @app.route("/get-agents", methods=['POST'])
 def get_db_agents():
